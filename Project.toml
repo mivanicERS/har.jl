@@ -1,0 +1,7 @@
+name = "HAR"
+uuid = "eca7d57f-9ffd-4cff-bb9d-9ed60e8ca485"
+authors = ["mivanicERS <67010332+mivanicERS@users.noreply.github.com>"]
+version = "0.1.0"
+
+[deps]
+NamedArrays = "86f7a689-2022-50b4-a561-43c23ac3c673"
