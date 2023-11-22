@@ -2,7 +2,8 @@ module HAR
 
 using NamedArrays
 
-readHar = function (fileName, setsToLowerCase=true)
+readHar = function (fileName, useCoefficientsAsNames = false,
+           toLowerCase = true)
 
     # HAR files come from the age of paper tapes--we need to get records first
     records = getRecords(fileName)
@@ -14,6 +15,15 @@ readHar = function (fileName, setsToLowerCase=true)
     for rr = records
         if length(rr) == 4
             currentHeader = read(IOBuffer(rr), String)
+
+            # Headers may have trailing spaces on the right; remove them
+            currentHeader = rstrip(currentHeader)
+
+            # If we are doing lower case, make sure header names are lower case too
+            if toLowerCase
+                currentHeader = lowercase(currentHeader)
+            end
+
             headers[currentHeader] = []
         else
             push!(headers[currentHeader], rr)
@@ -24,8 +34,12 @@ readHar = function (fileName, setsToLowerCase=true)
     toRet = Dict()
 
     for hh in headers
-        toRet[hh[1]] = processHeader(hh[2], setsToLowerCase)["values"]
+        headerContent = processHeader(hh[2], toLowerCase)
+        nameHeader = useCoefficientsAsNames ? (haskey(toRet,"coefficient") ? toRet["coefficient"] : hh[1]) : hh[1]
+        toRet[nameHeader] = headerContent["values"]
     end
+
+
 
     return toRet
 end
@@ -61,7 +75,7 @@ getRecords = function (fileName)
     return records
 end
 
-processHeader = function (hh, setsToLowerCase)
+processHeader = function (hh, toLowerCase)
 
     toRet = Dict()
 
@@ -80,7 +94,7 @@ processHeader = function (hh, setsToLowerCase)
 
         toRet["values"] = map(f -> combinedString[((f-1)*toRet["dimensions"][2]+1):(f*toRet["dimensions"][2])] |> strip, 1:toRet["dimensions"][1])
 
-        if setsToLowerCase == true
+        if toLowerCase == true
             toRet["values"] = map(lowercase, toRet["values"])
         end
 
@@ -94,6 +108,8 @@ processHeader = function (hh, setsToLowerCase)
         usedDimensions = read(IOBuffer(hh[2][13:16]), Int32)
         coefficient = strip(read(IOBuffer(hh[2][17:28]), String))
 
+        toRet["coefficient"] = coefficient
+
         # Default dimensions
         allDimensions = ["dimensions"]
         dnames = 1:toRet["numberOfDimensions"]
@@ -106,6 +122,10 @@ processHeader = function (hh, setsToLowerCase)
             allDimensions = read(IOBuffer(hh[2][33:(33+usedDimensions*12-1)]), String)
             dnames = map(f -> strip(allDimensions[((f-1)*12+1):(f*12)]), 1:usedDimensions)
 
+            if toLowerCase
+                dnames = map(lowercase,dnames)
+            end
+
             dimNames = Dict()
 
             uniqueDimNames = unique(dnames)
@@ -115,7 +135,7 @@ processHeader = function (hh, setsToLowerCase)
                 allDim = read(IOBuffer(hh[2+d][17:(17+nele*12-1)]), String)
                 dimNames[uniqueDimNames[d]] = map(f -> String(strip(allDim[((f-1)*12+1):(f*12)])), 1:nele)
 
-                if setsToLowerCase == true
+                if toLowerCase == true
                     dimNames[uniqueDimNames[d]] = map(lowercase, dimNames[uniqueDimNames[d]])
                 end
 
